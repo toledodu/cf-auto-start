@@ -20,6 +20,14 @@ jobs:
     - name: Install dependencies
       run: pip install requests
 
+    - name: Debug environment variables
+      run: |
+        echo "CF_USERNAME: ${{ secrets.CF_USERNAME && '已设置' || '未设置' }}"
+        echo "CF_PASSWORD: ${{ secrets.CF_PASSWORD && '已设置' || '未设置' }}"
+        echo "CF_API_ENDPOINT: ${{ secrets.CF_API_ENDPOINT && '已设置' || '未设置' }}"
+        echo "CF_ORG: ${{ secrets.CF_ORG && '已设置' || '未设置' }}"
+        echo "CF_APPS: ${{ secrets.CF_APPS && '已设置' || '未设置' }}"
+
     - name: Run Cloud Foundry Auto Start
       run: python cf_auto_start.py
       env:
