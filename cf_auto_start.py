@@ -74,8 +74,119 @@ class CFMobileClient:
             print(f"⚠️ 登录过程中出错: {e}")
             return False
 
-    # 这里省略其他方法，保持原有逻辑不变
-    # get_org_guid, get_space_guid, get_app_guid, get_app_status, start_application, wait_for_app_start 等方法
+    def test_api_connection(self, api_endpoint):
+        try:
+            response = self.session.get(f"{api_endpoint}/v2/info", timeout=15)
+            if response.status_code == 200:
+                print("✅ API连接成功！")
+                return True
+            else:
+                print(f"❌ API连接失败: {response.status_code}")
+                return False
+        except Exception as e:
+            print(f"⚠️ 连接测试错误: {e}")
+            return False
+
+    def get_org_guid(self, org_name):
+        try:
+            response = self.session.get(f"{self.api_endpoint}/v3/organizations?names={org_name}", timeout=15)
+            if response.status_code == 200:
+                data = response.json()
+                if data["resources"]:
+                    org_guid = data["resources"][0]["guid"]
+                    print(f"✅ 找到组织: {org_name}")
+                    return org_guid
+                else:
+                    print(f"❌ 找不到组织: {org_name}")
+                    return None
+            else:
+                print(f"❌ 获取组织失败: {response.status_code}")
+                return None
+        except Exception as e:
+            print(f"⚠️ 获取组织错误: {e}")
+            return None
+
+    def get_space_guid(self, org_guid, space_name):
+        try:
+            response = self.session.get(f"{self.api_endpoint}/v3/spaces?names={space_name}&organization_guids={org_guid}", timeout=15)
+            if response.status_code == 200:
+                data = response.json()
+                if data["resources"]:
+                    space_guid = data["resources"][0]["guid"]
+                    print(f"✅ 找到空间: {space_name}")
+                    return space_guid
+                else:
+                    print(f"❌ 找不到空间: {space_name}")
+                    return None
+            else:
+                print(f"❌ 获取空间失败: {response.status_code}")
+                return None
+        except Exception as e:
+            print(f"⚠️ 获取空间错误: {e}")
+            return None
+
+    def get_app_guid(self, app_name, space_guid):
+        try:
+            response = self.session.get(f"{self.api_endpoint}/v3/apps?names={app_name}&space_guids={space_guid}", timeout=15)
+            if response.status_code == 200:
+                data = response.json()
+                if data["resources"]:
+                    app_guid = data["resources"][0]["guid"]
+                    print(f"✅ 找到应用: {app_name}")
+                    return app_guid
+                else:
+                    print(f"❌ 找不到应用: {app_name}")
+                    return None
+            else:
+                print(f"❌ 获取应用失败: {response.status_code}")
+                return None
+        except Exception as e:
+            print(f"⚠️ 获取应用错误: {e}")
+            return None
+
+    def get_app_status(self, app_guid):
+        try:
+            response = self.session.get(f"{self.api_endpoint}/v3/apps/{app_guid}", timeout=15)
+            if response.status_code == 200:
+                data = response.json()
+                status = data.get("state", "UNKNOWN")
+                print(f"📊 应用状态: {status}")
+                return status
+            else:
+                print(f"❌ 获取应用状态失败: {response.status_code}")
+                return None
+        except Exception as e:
+            print(f"⚠️ 获取状态错误: {e}")
+            return None
+
+    def start_application(self, app_guid, app_name):
+        try:
+            print(f"🚀 正在启动应用: {app_name}")
+            response = self.session.post(f"{self.api_endpoint}/v3/apps/{app_guid}/actions/start", timeout=30)
+            if response.status_code in [200, 201]:
+                print("✅ 启动命令发送成功！")
+                return True
+            else:
+                print(f"❌ 启动失败: {response.status_code}")
+                return False
+        except Exception as e:
+            print(f"⚠️ 启动错误: {e}")
+            return False
+
+    def wait_for_app_start(self, app_guid, app_name, max_wait=60):
+        print(f"⏳ 等待应用启动，最多等待 {max_wait} 秒...")
+        start_time = time.time()
+        while time.time() - start_time < max_wait:
+            status = self.get_app_status(app_guid)
+            if status == "STARTED":
+                print(f"🎉 应用 {app_name} 启动成功！")
+                return True
+            elif status == "STOPPED":
+                print(f"❌ 应用 {app_name} 启动失败")
+                return False
+            time.sleep(3)
+        print(f"⏰ 等待超时，应用 {app_name} 可能仍在启动中")
+        return False
 
 def main():
     print("🚀 Cloud Foundry 应用启动管理工具")
