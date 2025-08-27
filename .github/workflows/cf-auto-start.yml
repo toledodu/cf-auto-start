@@ -2,7 +2,7 @@ name: Cloud Foundry Auto Start
 
 on:
   schedule:
-    - cron: '15 4 * * *'  # 北京时间12:15（UTC时间4:15）
+    - cron: '40 16 * * *'  # 北京时间00:40（UTC时间前一日16:40）
   workflow_dispatch:       # 允许手动触发
 
 jobs:
