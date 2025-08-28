@@ -2,60 +2,50 @@ name: Cloud Foundry Auto Start
 
 on:
   schedule:
-    - cron: '20 0 * * *'  # 每天UTC时间0:20（北京时间8:20）执行
-  workflow_dispatch:       # 允许手动触发工作流
+    - cron: '20 0 * * *'  # 北京时间8:20执行（UTC+0 0:20）
+  workflow_dispatch:       # 支持手动触发
 
 jobs:
   start-cf-apps:
     runs-on: ubuntu-latest
-    timeout-minutes: 15  # 防止工作流无限运行
+    timeout-minutes: 15  # 防止工作流卡死
 
     steps:
     - name: 检出代码
-      uses: actions/checkout@v4  # 拉取当前仓库代码
+      uses: actions/checkout@v4  # 确保拉取最新代码
 
     - name: 设置Python环境
       uses: actions/setup-python@v4
       with:
-        python-version: '3.10'  # 与脚本兼容的Python版本
-        cache: 'pip'  # 缓存依赖以加速后续运行
+        python-version: '3.10'  # 与脚本兼容的版本
+        cache: 'pip'  # 缓存依赖（依赖requirements.txt）
 
     - name: 创建并激活虚拟环境
       run: |
         python -m venv .venv
         echo "VIRTUAL_ENV=$PWD/.venv" >> $GITHUB_ENV
-        echo "$PWD/.venv/bin" >> $GITHUB_PATH  # 将虚拟环境加入PATH，无需每次source
+        echo "$PWD/.venv/bin" >> $GITHUB_PATH  # 无需每次手动source
 
     - name: 安装依赖
       run: |
         python -m pip install --upgrade pip
-        # 安装指定版本的依赖以确保兼容性
-        pip install "python-telegram-bot==20.7"
-        pip install requests
+        pip install -r requirements.txt  # 从依赖文件安装，确保版本正确
 
-    - name: 验证依赖安装
+    - name: 验证依赖版本
       run: |
         python --version
-        pip list | grep -E "telegram|requests"  # 确认关键依赖已安装
+        pip list | grep -E "telegram|requests"  # 确认版本匹配（telegram-bot==20.7）
 
-    - name: 运行Cloud Foundry自动启动脚本
+    - name: 运行CF自动启动脚本
       env:
-        # Cloud Foundry账号1配置
+        # CF账号1配置
         CF_USERNAME_1: ${{ secrets.CF_USERNAME_1 }}
         CF_PASSWORD_1: ${{ secrets.CF_PASSWORD_1 }}
         CF_ORG_1: ${{ secrets.CF_ORG_1 }}
-        CF_SPACE_1: ${{ secrets.CF_SPACE_1 || 'dev' }}  # 默认为dev空间
-        CF_APPS_1: ${{ secrets.CF_APPS_1 }}  # 应用列表，用逗号分隔
-        
-        # Cloud Foundry账号2配置
+        CF_SPACE_1: ${{ secrets.CF_SPACE_1 || 'dev' }}
+        CF_APPS_1: ${{ secrets.CF_APPS_1 }}
+        # CF账号2配置
         CF_USERNAME_2: ${{ secrets.CF_USERNAME_2 }}
         CF_PASSWORD_2: ${{ secrets.CF_PASSWORD_2 }}
         CF_ORG_2: ${{ secrets.CF_ORG_2 }}
-        CF_SPACE_2: ${{ secrets.CF_SPACE_2 || 'dev' }}
-        CF_APPS_2: ${{ secrets.CF_APPS_2 }}
-        
-        # Telegram通知配置
-        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      run: |
-        python cf_auto_start.py  # 执行主脚本
+        CF_SPACE_2: ${{ secrets.CF_SPACE_2 || 'dev'
