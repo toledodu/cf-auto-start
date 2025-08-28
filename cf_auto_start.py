@@ -20,7 +20,7 @@ def get_config():
         {
             "username": os.getenv('CF_USERNAME_2'),
             "password": os.getenv('CF_PASSWORD_2'),
-            "api_endpoint": "api.cf.ap21.hana.ondemand.com",  # 固定的SAP BTP端点
+            "api_endpoint": "api.cf.us10-001.hana.ondemand.com",  # 固定的SAP BTP端点
             "org": os.getenv('CF_ORG_2'),
             "space": os.getenv('CF_SPACE_2', 'dev'),
             "apps": [app.strip() for app in os.getenv('CF_APPS_2', '').split(',') if app.strip()]
