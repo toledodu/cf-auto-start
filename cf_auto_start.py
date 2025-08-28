@@ -235,7 +235,7 @@ def send_telegram_message(message):
         
         # 格式化消息标题和内容
         status_emoji = "✅" if "成功" in message else "⚠️"
-        formatted_message = f"{status_emoji} *Cloud Foundry应用启动结果*\n\n{message}\n\n🕒 时间: {get_current_time()}"
+        formatted_message = f"{status_emoji} *Cloud Foundry应用启动结果*\n\n{message}\n\n🕒 时间: {time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(time.time() + 8 * 3600))}"
         
         # 如果在GitHub Actions环境中运行，添加运行链接
         if os.getenv('GITHUB_RUN_ID') and os.getenv('GITHUB_REPOSITORY'):
@@ -270,12 +270,6 @@ def send_telegram_message(message):
         
     except Exception as e:
         print(f"⚠️ 发送Telegram消息时发生错误: {e}")
-
-
-def get_current_time():
-    """获取当前时间（UTC+8时区）"""
-    return (time.gmtime(time.time() + 8 * 3600))  # 转换为北京时间
-    return time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(time.time() + 8 * 3600))
 
 
 def main():
