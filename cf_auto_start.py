@@ -167,19 +167,18 @@ def send_telegram_message(message):
         print("⚠️ Telegram配置缺失，跳过消息发送")
         return
     try:
-        # 直接使用 Bot 类，无需手动配置 Request（Bot 内部已处理）
         bot = Bot(token=TELEGRAM_BOT_TOKEN)
-        # 发送消息（仅保留核心参数，避免复杂配置）
+        # 临时替换为固定测试内容（短且无特殊字符）
+        test_message = f"测试消息：连接成功！\nChat ID：{TELEGRAM_CHAT_ID}\n时间：{time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(time.time() + 8*3600))}"
         bot.send_message(
             chat_id=TELEGRAM_CHAT_ID,
-            text=f"【CF应用启动结果】\n\n{message}\n\n时间：{time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(time.time() + 8*3600))}",
-            parse_mode=ParseMode.MARKDOWN,
-            disable_web_page_preview=True  # 防止链接预览干扰
+            text=test_message,
+            disable_web_page_preview=True
         )
-        print("📤 Telegram消息发送成功")
+        print("📤 Telegram测试消息发送成功")
+        # （测试成功后，再恢复原消息逻辑）
     except Exception as e:
-        # 捕获所有错误，避免脚本中断
-        print(f"⚠️ 发送Telegram错误：{str(e)[:200]}")  # 限制错误信息长度，避免日志过长
+        print(f"⚠️ 发送Telegram错误：{str(e)}")
 
 def main():
     print("🚀 Cloud Foundry 应用自动启动脚本")
