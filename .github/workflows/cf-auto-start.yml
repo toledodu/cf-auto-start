@@ -44,6 +44,30 @@ jobs:
         python -c "from telegram.constants import ParseMode; print('ParseMode导入成功')"
 
     - name: 5. 运行CF自动启动脚本
+      # 关键：添加 env 配置，将 GitHub Secrets 注入为环境变量
+      env:
+        # --------------------------
+        # CF 账号1配置（必须和脚本中的变量名一致）
+        # --------------------------
+        CF_USERNAME_1: ${{ secrets.CF_USERNAME_1 }}  # 读取 GitHub Secret: CF_USERNAME_1
+        CF_PASSWORD_1: ${{ secrets.CF_PASSWORD_1 }}  # 读取 GitHub Secret: CF_PASSWORD_1
+        CF_ORG_1: ${{ secrets.CF_ORG_1 }}            # 读取 GitHub Secret: CF_ORG_1
+        CF_SPACE_1: ${{ secrets.CF_SPACE_1 || 'dev' }}# 可选，默认dev
+        CF_APPS_1: ${{ secrets.CF_APPS_1 }}          # 读取 GitHub Secret: CF_APPS_1
+        # --------------------------
+        # CF 账号2配置（如果没有，可删除这部分）
+        # --------------------------
+        CF_USERNAME_2: ${{ secrets.CF_USERNAME_2 }}
+        CF_PASSWORD_2: ${{ secrets.CF_PASSWORD_2 }}
+        CF_ORG_2: ${{ secrets.CF_ORG_2 }}
+        CF_SPACE_2: ${{ secrets.CF_SPACE_2 || 'dev' }}
+        CF_APPS_2: ${{ secrets.CF_APPS_2 }}
+        # --------------------------
+        # Telegram 配置（如果需要通知，保留）
+        # --------------------------
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      # 执行脚本
       run: |
         source .venv/bin/activate
         python cf_auto_start.py
