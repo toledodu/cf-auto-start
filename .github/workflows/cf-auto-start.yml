@@ -1,0 +1,46 @@
+name: CloudFoundry Auto Start
+
+on:
+  schedule:
+    # 每天北京时间 8:20 运行 (UTC时间 0:20)
+    - cron: '20 0 * * *'
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  start-cf-apps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        pip install requests python-telegram-bot
+
+    - name: Run CloudFoundry Auto Start
+      env:
+        CF_USERNAME_1: ${{ secrets.CF_USERNAME_1 }}
+        CF_PASSWORD_1: ${{ secrets.CF_PASSWORD_1 }}
+        CF_API_ENDPOINT_1: ${{ secrets.CF_API_ENDPOINT_1 }}
+        CF_ORG_1: ${{ secrets.CF_ORG_1 }}
+        CF_SPACE_1: ${{ secrets.CF_SPACE_1 }}
+        CF_APPS_1: ${{ secrets.CF_APPS_1 }}
+        
+        CF_USERNAME_2: ${{ secrets.CF_USERNAME_2 }}
+        CF_PASSWORD_2: ${{ secrets.CF_PASSWORD_2 }}
+        CF_API_ENDPOINT_2: ${{ secrets.CF_API_ENDPOINT_2 }}
+        CF_ORG_2: ${{ secrets.CF_ORG_2 }}
+        CF_SPACE_2: ${{ secrets.CF_SPACE_2 }}
+        CF_APPS_2: ${{ secrets.CF_APPS_2 }}
+        
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      run: |
+        python cf_auto_start.py
