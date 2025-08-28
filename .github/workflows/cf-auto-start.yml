@@ -2,50 +2,57 @@ name: Cloud Foundry Auto Start
 
 on:
   schedule:
-    - cron: '20 0 * * *'  # 北京时间8:20执行（UTC+0 0:20）
-  workflow_dispatch:       # 支持手动触发
+    - cron: '20 0 * * *'  # 北京时间8:20执行
+  workflow_dispatch:       # 允许手动触发
 
 jobs:
   start-cf-apps:
     runs-on: ubuntu-latest
-    timeout-minutes: 15  # 防止工作流卡死
+    timeout-minutes: 15
 
     steps:
-    - name: 检出代码
-      uses: actions/checkout@v4  # 确保拉取最新代码
+    - name: 1. 检出代码
+      uses: actions/checkout@v4
+      # 确保拉取所有文件（包括requirements.txt）
+      with:
+        fetch-depth: 1
 
-    - name: 设置Python环境
+    - name: 2. 设置Python环境
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'  # 与脚本兼容的版本
-        cache: 'pip'  # 缓存依赖（依赖requirements.txt）
+        # 禁用自动缓存（避免缓存旧依赖）
+        cache: ''
 
-    - name: 创建并激活虚拟环境
+    - name: 3. 创建并激活虚拟环境（强制生效）
       run: |
+        # 手动创建虚拟环境
         python -m venv .venv
-        echo "VIRTUAL_ENV=$PWD/.venv" >> $GITHUB_ENV
-        echo "$PWD/.venv/bin" >> $GITHUB_PATH  # 无需每次手动source
+        # 手动激活（避免PATH配置问题）
+        source .venv/bin/activate
+        # 验证虚拟环境是否激活
+        echo "当前Python路径：$(which python)"
+        echo "虚拟环境路径：$VIRTUAL_ENV"
 
-    - name: 安装依赖
+    - name: 4. 安装依赖（确保在虚拟环境中）
       run: |
+        # 每次都重新激活虚拟环境（防止步骤间环境丢失）
+        source .venv/bin/activate
+        # 升级pip并安装依赖
         python -m pip install --upgrade pip
-        pip install -r requirements.txt  # 从依赖文件安装，确保版本正确
+        pip install -r requirements.txt
+        # 强制指定版本，双重保障
+        pip install "python-telegram-bot==20.7" "requests==2.31.0"
+        # 验证依赖是否安装成功（关键！）
+        echo "=== 已安装的依赖 ==="
+        pip list | grep -E "telegram|requests"
+        # 验证telegram模块是否存在
+        echo "=== 验证telegram模块 ==="
+        python -c "import telegram; print('telegram版本：', telegram.__version__)"
+        python -c "from telegram.utils import request; print('telegram.utils加载成功')"
 
-    - name: 验证依赖版本
+    - name: 5. 运行CF自动启动脚本
       run: |
-        python --version
-        pip list | grep -E "telegram|requests"  # 确认版本匹配（telegram-bot==20.7）
-
-    - name: 运行CF自动启动脚本
-      env:
-        # CF账号1配置
-        CF_USERNAME_1: ${{ secrets.CF_USERNAME_1 }}
-        CF_PASSWORD_1: ${{ secrets.CF_PASSWORD_1 }}
-        CF_ORG_1: ${{ secrets.CF_ORG_1 }}
-        CF_SPACE_1: ${{ secrets.CF_SPACE_1 || 'dev' }}
-        CF_APPS_1: ${{ secrets.CF_APPS_1 }}
-        # CF账号2配置
-        CF_USERNAME_2: ${{ secrets.CF_USERNAME_2 }}
-        CF_PASSWORD_2: ${{ secrets.CF_PASSWORD_2 }}
-        CF_ORG_2: ${{ secrets.CF_ORG_2 }}
-        CF_SPACE_2: ${{ secrets.CF_SPACE_2 || 'dev'
+        # 必须重新激活虚拟环境
+        source .venv/bin/activate
+        python cf_auto_start.py
