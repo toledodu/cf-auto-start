@@ -13,46 +13,37 @@ jobs:
     steps:
     - name: 1. 检出代码
       uses: actions/checkout@v4
-      # 确保拉取所有文件（包括requirements.txt）
       with:
         fetch-depth: 1
 
     - name: 2. 设置Python环境
       uses: actions/setup-python@v4
       with:
-        python-version: '3.10'  # 与脚本兼容的版本
-        # 禁用自动缓存（避免缓存旧依赖）
-        cache: ''
+        python-version: '3.10'
+        cache: ''  # 禁用自动缓存，避免旧依赖干扰
 
-    - name: 3. 创建并激活虚拟环境（强制生效）
+    - name: 3. 创建并激活虚拟环境
       run: |
-        # 手动创建虚拟环境
         python -m venv .venv
-        # 手动激活（避免PATH配置问题）
         source .venv/bin/activate
-        # 验证虚拟环境是否激活
         echo "当前Python路径：$(which python)"
-        echo "虚拟环境路径：$VIRTUAL_ENV"
+        echo "虚拟环境激活成功"
 
-    - name: 4. 安装依赖（确保在虚拟环境中）
+    - name: 4. 安装依赖并验证
       run: |
-        # 每次都重新激活虚拟环境（防止步骤间环境丢失）
         source .venv/bin/activate
-        # 升级pip并安装依赖
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        # 强制指定版本，双重保障
-        pip install "python-telegram-bot==20.7" "requests==2.31.0"
-        # 验证依赖是否安装成功（关键！）
+        # 仅验证核心依赖（不验证 telegram.utils）
         echo "=== 已安装的依赖 ==="
         pip list | grep -E "telegram|requests"
-        # 验证telegram模块是否存在
+        # 验证 telegram 模块是否能正常导入
         echo "=== 验证telegram模块 ==="
         python -c "import telegram; print('telegram版本：', telegram.__version__)"
-        python -c "from telegram.utils import request; print('telegram.utils加载成功')"
+        python -c "from telegram import Bot; print('Bot类导入成功')"
+        python -c "from telegram.constants import ParseMode; print('ParseMode导入成功')"
 
     - name: 5. 运行CF自动启动脚本
       run: |
-        # 必须重新激活虚拟环境
         source .venv/bin/activate
         python cf_auto_start.py
