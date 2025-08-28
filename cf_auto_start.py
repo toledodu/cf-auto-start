@@ -1,3 +1,4 @@
+```python
 #!/usr/bin/env python3
 import requests
 import base64
@@ -45,8 +46,10 @@ class CFMobileClient:
 
     def discover_auth_endpoint(self, api_endpoint):
         try:
-            print("🔍 发现认证端点...")
-            info_response = self.session.get(f"{api_endpoint}/v2/info", timeout=15)
+            print(f"🔍 发现认证端点: {api_endpoint}")
+            info_response = self.session.get(f"{api_endpoint}/v2/info", timeout=15, verify=False)
+            print(f"响应状态码: {info_response.status_code}")
+            
             if info_response.status_code == 200:
                 info_data = info_response.json()
                 auth_endpoint = info_data.get("authorization_endpoint", "")
@@ -54,6 +57,7 @@ class CFMobileClient:
                 return auth_endpoint
             else:
                 print(f"❌ 无法获取API信息: {info_response.status_code}")
+                print(f"响应内容: {info_response.text[:200]}")
                 return None
         except Exception as e:
             print(f"⚠️ 发现端点时出错: {e}")
@@ -83,6 +87,7 @@ class CFMobileClient:
                 return True
             else:
                 print(f"❌ 认证失败: {response.status_code}")
+                print(f"响应内容: {response.text[:200]}")
                 return False
         except Exception as e:
             print(f"⚠️ 登录过程中出错: {e}")
@@ -184,6 +189,7 @@ class CFMobileClient:
                 return True
             else:
                 print(f"❌ 启动失败: {response.status_code}")
+                print(f"响应内容: {response.text[:200]}")
                 return False
         except Exception as e:
             print(f"⚠️ 启动错误: {e}")
@@ -220,35 +226,48 @@ def main():
     client = CFMobileClient()
     overall_success_count = 0
     overall_app_count = 0
+    
     for account in ACCOUNTS:
         print(f"\n处理账号: {account['username']}")
         if not client.login(account['username'], account['password'], account['api_endpoint']):
+            print(f"❌ 账号 {account['username']} 登录失败，跳过处理")
             continue
+            
         org_guid = client.get_org_guid(account['org'])
         if not org_guid:
+            print(f"❌ 无法获取组织 {account['org']} 的GUID，跳过处理")
             continue
+            
         space_guid = client.get_space_guid(org_guid, account['space'])
         if not space_guid:
+            print(f"❌ 无法获取空间 {account['space']} 的GUID，跳过处理")
             continue
+            
         success_count = 0
         app_count = len(account['apps'])
         overall_app_count += app_count
+        
         for app_name in account['apps']:
             app_guid = client.get_app_guid(app_name, space_guid)
             if not app_guid:
                 continue
+                
             current_status = client.get_app_status(app_guid)
             if current_status == "STARTED":
                 print(f"✅ 应用 {app_name} 已在运行状态")
                 success_count += 1
                 continue
+                
             if client.start_application(app_guid, app_name):
                 if client.wait_for_app_start(app_guid, app_name):
                     success_count += 1
-        overall_success_count += success_count
+        
         print(f"📊 完成: {success_count}/{app_count} 个应用启动成功")
+        overall_success_count += success_count
+    
     send_telegram_message(f"Cloud Foundry应用启动结果: {overall_success_count}/{overall_app_count} 个应用启动成功")
 
 
 if __name__ == "__main__":
     main()
+```
