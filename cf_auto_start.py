@@ -4,7 +4,7 @@ import base64
 import json
 import time
 import os
-# 只保留必要的telegram导入（适配v20.7）
+# 仅保留必需的导入，彻底移除 telegram.utils
 from telegram import Bot
 from telegram.constants import ParseMode
 
@@ -161,21 +161,25 @@ class CFMobileClient:
         print(f"⏰ 应用 {app_name} 启动超时")
         return False
 
-# 简化Telegram消息发送（移除复杂依赖）
+# 简化Telegram消息发送（完全不依赖 telegram.utils）
 def send_telegram_message(message):
     if not (TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID):
         print("⚠️ Telegram配置缺失，跳过消息发送")
         return
     try:
+        # 直接使用 Bot 类，无需手动配置 Request（Bot 内部已处理）
         bot = Bot(token=TELEGRAM_BOT_TOKEN)
+        # 发送消息（仅保留核心参数，避免复杂配置）
         bot.send_message(
             chat_id=TELEGRAM_CHAT_ID,
             text=f"【CF应用启动结果】\n\n{message}\n\n时间：{time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(time.time() + 8*3600))}",
-            parse_mode=ParseMode.MARKDOWN
+            parse_mode=ParseMode.MARKDOWN,
+            disable_web_page_preview=True  # 防止链接预览干扰
         )
         print("📤 Telegram消息发送成功")
     except Exception as e:
-        print(f"⚠️ 发送Telegram错误：{e}")
+        # 捕获所有错误，避免脚本中断
+        print(f"⚠️ 发送Telegram错误：{str(e)[:200]}")  # 限制错误信息长度，避免日志过长
 
 def main():
     print("🚀 Cloud Foundry 应用自动启动脚本")
@@ -187,6 +191,12 @@ def main():
 
     for account in ACCOUNTS:
         username = account["username"]
+        # 跳过配置不完整的账号（避免空值报错）
+        if not (username and account["password"] and account["org"]):
+            print(f"\n--- 账号配置不完整，跳过处理 ---")
+            result_msg.append(f"❌ 未配置完整：用户名/密码/组织缺失")
+            continue
+        
         print(f"\n--- 处理账号：{username} ---")
         if not client.login(username, account["password"], account["api_endpoint"]):
             result_msg.append(f"❌ 账号 {username}：登录失败")
@@ -225,7 +235,11 @@ def main():
         result_msg.append(f"\n✅ 账号 {username}：{success}/{len(apps)} 个应用成功")
         result_msg.extend(app_results)
     
+    # 构建最终消息（避免过长）
     final_msg = f"总结果：{total_success}/{total_apps} 个应用启动成功\n\n" + "\n".join(result_msg)
+    # 限制消息长度（Telegram单条消息最大4096字符）
+    if len(final_msg) > 4000:
+        final_msg = final_msg[:4000] + "\n\n（消息过长，已截断）"
     print(f"\n{final_msg}")
     send_telegram_message(final_msg)
 
