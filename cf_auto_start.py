@@ -4,7 +4,8 @@ import base64
 import json
 import time
 import os
-from telegram import Bot, ParseMode
+from telegram import Bot
+from telegram.constants import ParseMode  # 修改这行
 from telegram.utils.request import Request
 from telegram.error import TelegramError, NetworkError, BadRequest, TimedOut
 
