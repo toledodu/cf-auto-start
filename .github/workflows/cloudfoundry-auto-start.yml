@@ -2,15 +2,14 @@ name: CloudFoundry Auto Start
 
 on:
   schedule:
-    # 每天北京时间 8:20 运行 (UTC时间 0:20)
-    - cron: '20 0 * * *'
-  workflow_dispatch: # 允许手动触发
+    - cron: '20 0 * * *'  # 每天UTC时间0:20（北京时间8:20）
+  workflow_dispatch:       # 允许手动触发
 
 jobs:
   start-cf-apps:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -18,15 +17,30 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.9'
+        python-version: '3.10'  # 建议使用3.10或3.11，兼容性更好:cite[8]
+
+    - name: Create and activate virtual environment
+      run: |
+        python -m venv .venv
+        source .venv/bin/activate
+        echo "VIRTUAL_ENV=$PWD/.venv" >> $GITHUB_ENV  # 让后续步骤也知道虚拟环境路径
 
     - name: Install dependencies
       run: |
-        pip install requests python-telegram-bot
+        source .venv/bin/activate
+        python -m pip install --upgrade pip
+        pip install "python-telegram-bot==20.7"  # 安装一个较新且兼容的版本:cite[1]
+        pip install requests
+
+    - name: Verify installation and paths
+      run: |
+        source .venv/bin/activate
+        which python
+        python -c "import sys; print(sys.path)"
+        pip list | grep telegram
 
     - name: Run CloudFoundry Auto Start
       env:
-        # 第一个账号配置
         CF_USERNAME_1: ${{ secrets.CF_USERNAME_1 }}
         CF_PASSWORD_1: ${{ secrets.CF_PASSWORD_1 }}
         CF_API_ENDPOINT_1: ${{ secrets.CF_API_ENDPOINT_1 }}
@@ -34,7 +48,6 @@ jobs:
         CF_SPACE_1: ${{ secrets.CF_SPACE_1 }}
         CF_APPS_1: ${{ secrets.CF_APPS_1 }}
         
-        # 第二个账号配置
         CF_USERNAME_2: ${{ secrets.CF_USERNAME_2 }}
         CF_PASSWORD_2: ${{ secrets.CF_PASSWORD_2 }}
         CF_API_ENDPOINT_2: ${{ secrets.CF_API_ENDPOINT_2 }}
@@ -42,8 +55,8 @@ jobs:
         CF_SPACE_2: ${{ secrets.CF_SPACE_2 }}
         CF_APPS_2: ${{ secrets.CF_APPS_2 }}
         
-        # Telegram 配置
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       run: |
+        source .venv/bin/activate
         python cf_auto_start.py
