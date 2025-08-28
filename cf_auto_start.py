@@ -6,33 +6,30 @@ import time
 import os
 from telegram import Bot
 
-
 # 从环境变量读取配置
 def get_config():
     return [
         {
             "username": os.getenv('CF_USERNAME_1'),
             "password": os.getenv('CF_PASSWORD_1'),
-            "api_endpoint": os.getenv('CF_API_ENDPOINT_1'),
+            "api_endpoint": "api.cf.ap21.hana.ondemand.com",  # 固定的SAP BTP端点
             "org": os.getenv('CF_ORG_1'),
             "space": os.getenv('CF_SPACE_1', 'dev'),
-            "apps": [app.strip() for app in os.getenv('CF_APPS_1').split(',') if app.strip()]
+            "apps": [app.strip() for app in os.getenv('CF_APPS_1', '').split(',') if app.strip()]
         },
         {
             "username": os.getenv('CF_USERNAME_2'),
             "password": os.getenv('CF_PASSWORD_2'),
-            "api_endpoint": os.getenv('CF_API_ENDPOINT_2'),
+            "api_endpoint": "api.cf.ap21.hana.ondemand.com",  # 固定的SAP BTP端点
             "org": os.getenv('CF_ORG_2'),
             "space": os.getenv('CF_SPACE_2', 'dev'),
-            "apps": [app.strip() for app in os.getenv('CF_APPS_2').split(',') if app.strip()]
+            "apps": [app.strip() for app in os.getenv('CF_APPS_2', '').split(',') if app.strip()]
         }
     ]
-
 
 ACCOUNTS = get_config()
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
-
 
 class CFMobileClient:
     def __init__(self):
@@ -46,8 +43,16 @@ class CFMobileClient:
     def discover_auth_endpoint(self, api_endpoint):
         try:
             print(f"🔍 发现认证端点: {api_endpoint}")
-            info_response = self.session.get(f"{api_endpoint}/v2/info", timeout=15, verify=False)
-            print(f"响应状态码: {info_response.status_code}")
+            
+            # 确保端点格式正确
+            if not api_endpoint.startswith('https://'):
+                api_endpoint = f"https://{api_endpoint}"
+            
+            info_url = f"{api_endpoint}/v2/info"
+            print(f"🌐 访问: {info_url}")
+            
+            info_response = self.session.get(info_url, timeout=15, verify=True)
+            print(f"📊 响应状态码: {info_response.status_code}")
             
             if info_response.status_code == 200:
                 info_data = info_response.json()
@@ -64,6 +69,11 @@ class CFMobileClient:
 
     def login(self, username, password, api_endpoint):
         print(f"🔐 正在登录: {username}")
+        
+        # 确保API端点格式正确
+        if not api_endpoint.startswith('https://'):
+            api_endpoint = f"https://{api_endpoint}"
+        
         self.api_endpoint = api_endpoint
         auth_endpoint = self.discover_auth_endpoint(api_endpoint)
         if not auth_endpoint:
@@ -73,8 +83,17 @@ class CFMobileClient:
             token_url = f"{auth_endpoint}/oauth/token"
             auth_str = "cf:"
             encoded_auth = base64.b64encode(auth_str.encode()).decode()
-            headers = {"Authorization": f"Basic {encoded_auth}", "Content-Type": "application/x-www-form-urlencoded"}
-            data = {"grant_type": "password", "username": username, "password": password}
+            
+            headers = {
+                "Authorization": f"Basic {encoded_auth}", 
+                "Content-Type": "application/x-www-form-urlencoded"
+            }
+            
+            data = {
+                "grant_type": "password", 
+                "username": username, 
+                "password": password
+            }
 
             response = self.session.post(token_url, headers=headers, data=data, timeout=30)
 
@@ -90,19 +109,6 @@ class CFMobileClient:
                 return False
         except Exception as e:
             print(f"⚠️ 登录过程中出错: {e}")
-            return False
-
-    def test_api_connection(self, api_endpoint):
-        try:
-            response = self.session.get(f"{api_endpoint}/v2/info", timeout=15)
-            if response.status_code == 200:
-                print("✅ API连接成功！")
-                return True
-            else:
-                print(f"❌ API连接失败: {response.status_code}")
-                return False
-        except Exception as e:
-            print(f"⚠️ 连接测试错误: {e}")
             return False
 
     def get_org_guid(self, org_name):
@@ -212,9 +218,9 @@ class CFMobileClient:
 
 def send_telegram_message(message):
     if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID:
-        bot = Bot(token = TELEGRAM_BOT_TOKEN)
+        bot = Bot(token=TELEGRAM_BOT_TOKEN)
         try:
-            bot.send_message(chat_id = TELEGRAM_CHAT_ID, text = message)
+            bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
         except Exception as e:
             print(f"⚠️ 发送Telegram消息出错: {e}")
 
