@@ -4,9 +4,9 @@ import base64
 import json
 import time
 import os
-# 仅保留必需的导入，彻底移除 telegram.utils
+import asyncio  # 新增：导入异步库
+# 仅保留必需的导入
 from telegram import Bot
-from telegram.constants import ParseMode
 
 # 从环境变量读取CF配置
 def get_config():
@@ -161,8 +161,8 @@ class CFMobileClient:
         print(f"⏰ 应用 {app_name} 启动超时")
         return False
 
-# 简化Telegram消息发送（完全不依赖 telegram.utils）
-def send_telegram_message(message):
+# 异步版本的Telegram消息发送函数（适配python-telegram-bot v20+）
+async def send_telegram_message(message):
     # 固定测试内容（先验证基础发送能力）
     test_content = "测试：GitHub Actions脚本发送成功"
     
@@ -189,29 +189,38 @@ def send_telegram_message(message):
     for attempt in range(max_retries):
         try:
             bot = Bot(token=TELEGRAM_BOT_TOKEN)
-            # 发送测试消息（先确保基础功能可用）
-            response = bot.send_message(
-                chat_id=int(TELEGRAM_CHAT_ID),  # 强制转为整数（避免字符串格式问题）
+            # 发送测试消息（使用await调用异步方法）
+            response = await bot.send_message(
+                chat_id=int(TELEGRAM_CHAT_ID),  # 强制转为整数
                 text=test_content,
                 disable_web_page_preview=True
             )
             print(f"✅ 第{attempt+1}次发送成功，消息ID: {response.message_id}")
             
-            # 测试成功后，再发送实际消息（如果需要）
+            # 测试成功后，再发送实际消息
             if message and message != test_content:
-                response = bot.send_message(
+                response = await bot.send_message(
                     chat_id=int(TELEGRAM_CHAT_ID),
                     text=message,
                     disable_web_page_preview=True
                 )
                 print(f"✅ 实际消息发送成功，消息ID: {response.message_id}")
-            return  # 成功后退出函数
+            
+            # 关闭bot连接
+            await bot.close()
+            return
             
         except Exception as e:
             print(f"❌ 第{attempt+1}次发送失败: {str(e)}")
             if attempt < max_retries - 1:
                 print(f"⏳ 等待{retry_delay}秒后重试...")
-                time.sleep(retry_delay)
+                await asyncio.sleep(retry_delay)  # 异步等待
+        finally:
+            # 确保连接关闭
+            try:
+                await bot.close()
+            except:
+                pass
     
     print("❌ 所有重试均失败，消息未发送")
     
@@ -226,7 +235,7 @@ def main():
 
     for account in ACCOUNTS:
         username = account["username"]
-        # 跳过配置不完整的账号（避免空值报错）
+        # 跳过配置不完整的账号
         if not (username and account["password"] and account["org"]):
             print(f"\n--- 账号配置不完整，跳过处理 ---")
             result_msg.append(f"❌ 未配置完整：用户名/密码/组织缺失")
@@ -270,13 +279,15 @@ def main():
         result_msg.append(f"\n✅ 账号 {username}：{success}/{len(apps)} 个应用成功")
         result_msg.extend(app_results)
     
-    # 构建最终消息（避免过长）
+    # 构建最终消息
     final_msg = f"总结果：{total_success}/{total_apps} 个应用启动成功\n\n" + "\n".join(result_msg)
-    # 限制消息长度（Telegram单条消息最大4096字符）
+    # 限制消息长度
     if len(final_msg) > 4000:
         final_msg = final_msg[:4000] + "\n\n（消息过长，已截断）"
     print(f"\n{final_msg}")
-    send_telegram_message(final_msg)
+    
+    # 运行异步消息发送函数
+    asyncio.run(send_telegram_message(final_msg))
 
 if __name__ == "__main__":
     main()
