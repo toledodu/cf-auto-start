@@ -57,16 +57,5 @@ jobs:
         # Telegram通知配置
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        
-        # 日志级别（可选，默认INFO）
-        LOG_LEVEL: INFO
       run: |
         python cf_auto_start.py  # 执行主脚本
-
-    - name: 失败时上传日志
-      if: failure()  # 仅在工作流失败时执行
-      uses: actions/upload-artifact@v4
-      with:
-        name: cf-auto-start-logs
-        path: cf_auto_start.log  # 上传脚本生成的日志文件
-        retention-days: 7  # 日志保留7天，便于排查问题
