@@ -4,8 +4,8 @@ import json
 
 def test_telegram_bot():
     """测试Telegram机器人配置"""
-    token = "7599252176:AAHfK_sN6AGQQfGH3bVgqayOLczC1IMF9No"
-    chat_id = "773524291"
+    token = "75995552176:AAHfK_sN6AGQQfGH3bVgqayOLczC1IMF9No"
+    chat_id = "7735256"
     
     print("🤖 测试Telegram机器人配置...")
     
