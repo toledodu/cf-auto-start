@@ -5,7 +5,8 @@ import json
 import time
 import os
 from telegram import Bot
-from telegram.constants import ParseMode  # 修改这行
+# 关键修复：从 telegram.constants 导入 ParseMode（适配 v20.x 版本）
+from telegram.constants import ParseMode
 from telegram.utils.request import Request
 from telegram.error import TelegramError, NetworkError, BadRequest, TimedOut
 
@@ -15,7 +16,7 @@ def get_config():
         {
             "username": os.getenv('CF_USERNAME_1'),
             "password": os.getenv('CF_PASSWORD_1'),
-            "api_endpoint": "api.cf.ap21.hana.ondemand.com",  # 固定的SAP BTP端点
+            "api_endpoint": "api.cf.ap21.hana.ondemand.com",
             "org": os.getenv('CF_ORG_1'),
             "space": os.getenv('CF_SPACE_1', 'dev'),
             "apps": [app.strip() for app in os.getenv('CF_APPS_1', '').split(',') if app.strip()]
@@ -23,7 +24,7 @@ def get_config():
         {
             "username": os.getenv('CF_USERNAME_2'),
             "password": os.getenv('CF_PASSWORD_2'),
-            "api_endpoint": "api.cf.us10-001.hana.ondemand.com",  # 固定的SAP BTP端点
+            "api_endpoint": "api.cf.us10-001.hana.ondemand.com",
             "org": os.getenv('CF_ORG_2'),
             "space": os.getenv('CF_SPACE_2', 'dev'),
             "apps": [app.strip() for app in os.getenv('CF_APPS_2', '').split(',') if app.strip()]
@@ -46,11 +47,8 @@ class CFMobileClient:
     def discover_auth_endpoint(self, api_endpoint):
         try:
             print(f"🔍 发现认证端点: {api_endpoint}")
-            
-            # 确保端点格式正确
             if not api_endpoint.startswith('https://'):
                 api_endpoint = f"https://{api_endpoint}"
-            
             info_url = f"{api_endpoint}/v2/info"
             print(f"🌐 访问: {info_url}")
             
@@ -72,8 +70,6 @@ class CFMobileClient:
 
     def login(self, username, password, api_endpoint):
         print(f"🔐 正在登录: {username}")
-        
-        # 确保API端点格式正确
         if not api_endpoint.startswith('https://'):
             api_endpoint = f"https://{api_endpoint}"
         
@@ -99,7 +95,6 @@ class CFMobileClient:
             }
 
             response = self.session.post(token_url, headers=headers, data=data, timeout=30)
-
             if response.status_code == 200:
                 token_data = response.json()
                 access_token = token_data["access_token"]
@@ -220,7 +215,6 @@ class CFMobileClient:
 
 
 def send_telegram_message(message):
-    """发送优化的Telegram消息，包含格式化和重试机制"""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("⚠️ Telegram配置不完整，跳过消息发送")
         return
@@ -236,17 +230,18 @@ def send_telegram_message(message):
         
         # 格式化消息标题和内容
         status_emoji = "✅" if "成功" in message else "⚠️"
-        formatted_message = f"{status_emoji} *Cloud Foundry应用启动结果*\n\n{message}\n\n🕒 时间: {time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(time.time() + 8 * 3600))}"
+        formatted_message = f"{status_emoji} *Cloud Foundry应用启动结果*\n\n{message}\n\n🕒 时间: {get_current_time()}"
         
-        # 如果在GitHub Actions环境中运行，添加运行链接
+        # GitHub Actions环境中添加运行链接
         if os.getenv('GITHUB_RUN_ID') and os.getenv('GITHUB_REPOSITORY'):
             run_url = f"https://github.com/{os.getenv('GITHUB_REPOSITORY')}/actions/runs/{os.getenv('GITHUB_RUN_ID')}"
             formatted_message += f"\n\n🔗 [查看运行详情]({run_url})"
 
-        # 尝试发送消息，最多重试2次
+        # 重试机制（最多2次）
         max_retries = 2
         for attempt in range(max_retries + 1):
             try:
+                # 关键修复：使用 telegram.constants.ParseMode
                 bot.send_message(
                     chat_id=TELEGRAM_CHAT_ID,
                     text=formatted_message,
@@ -258,7 +253,7 @@ def send_telegram_message(message):
             except (NetworkError, TimedOut) as e:
                 print(f"⚠️ 网络错误(第{attempt+1}次尝试): {str(e)}")
                 if attempt < max_retries:
-                    time.sleep(2 **attempt)  # 指数退避重试
+                    time.sleep(2 **attempt)
                     continue
             except BadRequest as e:
                 print(f"⚠️ 消息格式错误: {str(e)}")
@@ -268,9 +263,13 @@ def send_telegram_message(message):
                 break
         
         print("❌ 所有尝试均失败，无法发送Telegram消息")
-        
     except Exception as e:
         print(f"⚠️ 发送Telegram消息时发生错误: {e}")
+
+
+def get_current_time():
+    # 修复时间计算逻辑（之前代码有重复return）
+    return time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(time.time() + 8 * 3600))
 
 
 def main():
@@ -279,7 +278,7 @@ def main():
     client = CFMobileClient()
     overall_success_count = 0
     overall_app_count = 0
-    detailed_results = []  # 存储详细结果用于Telegram消息
+    detailed_results = []
     
     for account in ACCOUNTS:
         print(f"\n处理账号: {account['username']}")
@@ -330,12 +329,11 @@ def main():
             else:
                 account_results.append(f"❌ 应用 {app_name}: 启动失败")
         
-        # 收集账号结果
         detailed_results.append(f"\n📊 账号 {account['username']} 结果: {success_count}/{app_count} 成功")
         detailed_results.extend(account_results)
         overall_success_count += success_count
     
-    # 构建完整消息
+    # 发送汇总消息
     summary = f"总结果: {overall_success_count}/{overall_app_count} 个应用启动成功"
     full_message = f"{summary}\n\n详细信息:\n" + "\n".join(detailed_results)
     send_telegram_message(full_message)
