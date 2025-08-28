@@ -1,3 +1,4 @@
+# 此代码片段主要修改了设置Python版本、创建虚拟环境、安装依赖库的部分
 name: CloudFoundry Auto Start
 
 on:
@@ -14,33 +15,41 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Python
+    - name: Set up Python 3.10 # 明确使用 Python 3.10
       uses: actions/setup-python@v4
       with:
-        python-version: '3.10'  # 建议使用3.10或3.11，兼容性更好:cite[8]
+        python-version: '3.10' # 选择一个兼容性较好的版本，避免使用最新的 3.12
 
     - name: Create and activate virtual environment
       run: |
         python -m venv .venv
         source .venv/bin/activate
-        echo "VIRTUAL_ENV=$PWD/.venv" >> $GITHUB_ENV  # 让后续步骤也知道虚拟环境路径
+        echo "VIRTUAL_ENV=$PWD/.venv" >> $GITHUB_ENV
 
-    - name: Install dependencies
+    - name: Install dependencies with compatible versions
       run: |
         source .venv/bin/activate
         python -m pip install --upgrade pip
-        pip install "python-telegram-bot==20.7"  # 安装一个较新且兼容的版本:cite[1]
+        # 安装指定版本的 python-telegram-bot，以确保兼容性
+        pip install "python-telegram-bot==20.7"
+        # 确保安装 requests
         pip install requests
+        # 如果仍有问题，可以尝试指定 urllib3 的版本
+        # pip install "urllib3==1.26.15"
 
-    - name: Verify installation and paths
+    - name: Verify installations # 验证安装的包
       run: |
         source .venv/bin/activate
-        which python
-        python -c "import sys; print(sys.path)"
-        pip list | grep telegram
+        echo "Python version:"
+        python --version
+        echo "Installed packages (grep for telegram):"
+        pip list | grep -i telegram
+        echo "Installed packages (grep for requests):"
+        pip list | grep -i requests
 
     - name: Run CloudFoundry Auto Start
       env:
+        # 你的环境变量 secrets 在这里配置...
         CF_USERNAME_1: ${{ secrets.CF_USERNAME_1 }}
         CF_PASSWORD_1: ${{ secrets.CF_PASSWORD_1 }}
         CF_API_ENDPOINT_1: ${{ secrets.CF_API_ENDPOINT_1 }}
