@@ -163,22 +163,58 @@ class CFMobileClient:
 
 # 简化Telegram消息发送（完全不依赖 telegram.utils）
 def send_telegram_message(message):
-    if not (TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID):
-        print("⚠️ Telegram配置缺失，跳过消息发送")
+    # 固定测试内容（先验证基础发送能力）
+    test_content = "测试：GitHub Actions脚本发送成功"
+    
+    # 1. 严格校验参数（排除隐性错误）
+    if not TELEGRAM_BOT_TOKEN:
+        print("⚠️ 错误：TELEGRAM_BOT_TOKEN未配置")
         return
-    try:
-        bot = Bot(token=TELEGRAM_BOT_TOKEN)
-        # 临时替换为固定测试内容（短且无特殊字符）
-        test_message = f"测试消息：连接成功！\nChat ID：{TELEGRAM_CHAT_ID}\n时间：{time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(time.time() + 8*3600))}"
-        bot.send_message(
-            chat_id=TELEGRAM_CHAT_ID,
-            text=test_message,
-            disable_web_page_preview=True
-        )
-        print("📤 Telegram测试消息发送成功")
-        # （测试成功后，再恢复原消息逻辑）
-    except Exception as e:
-        print(f"⚠️ 发送Telegram错误：{str(e)}")
+    if not TELEGRAM_CHAT_ID:
+        print("⚠️ 错误：TELEGRAM_CHAT_ID未配置")
+        return
+    # 校验Chat ID格式（必须是纯数字）
+    if not str(TELEGRAM_CHAT_ID).isdigit():
+        print(f"⚠️ 错误：Chat ID格式无效（应为纯数字），当前值：{TELEGRAM_CHAT_ID}")
+        return
+    
+    # 2. 打印完整参数（方便排查）
+    print(f"📌 发送参数 - Bot Token前5位: {TELEGRAM_BOT_TOKEN[:5]}...")
+    print(f"📌 发送参数 - Chat ID: {TELEGRAM_CHAT_ID}（类型：{type(TELEGRAM_CHAT_ID)}）")
+    
+    # 3. 添加重试机制（应对网络波动）
+    max_retries = 3  # 最多重试3次
+    retry_delay = 5  # 每次重试间隔5秒
+    
+    for attempt in range(max_retries):
+        try:
+            bot = Bot(token=TELEGRAM_BOT_TOKEN)
+            # 发送测试消息（先确保基础功能可用）
+            response = bot.send_message(
+                chat_id=int(TELEGRAM_CHAT_ID),  # 强制转为整数（避免字符串格式问题）
+                text=test_content,
+                disable_web_page_preview=True
+            )
+            print(f"✅ 第{attempt+1}次发送成功，消息ID: {response.message_id}")
+            
+            # 测试成功后，再发送实际消息（如果需要）
+            if message and message != test_content:
+                response = bot.send_message(
+                    chat_id=int(TELEGRAM_CHAT_ID),
+                    text=message,
+                    disable_web_page_preview=True
+                )
+                print(f"✅ 实际消息发送成功，消息ID: {response.message_id}")
+            return  # 成功后退出函数
+            
+        except Exception as e:
+            print(f"❌ 第{attempt+1}次发送失败: {str(e)}")
+            if attempt < max_retries - 1:
+                print(f"⏳ 等待{retry_delay}秒后重试...")
+                time.sleep(retry_delay)
+    
+    print("❌ 所有重试均失败，消息未发送")
+    
 
 def main():
     print("🚀 Cloud Foundry 应用自动启动脚本")
