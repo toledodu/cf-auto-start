@@ -18,15 +18,7 @@ def get_config():
             "org": os.getenv('CF_ORG_1'),
             "space": os.getenv('CF_SPACE_1', 'dev'),
             "apps": [app.strip() for app in os.getenv('CF_APPS_1', '').split(',') if app.strip()]
-        },
-        {
-            "username": os.getenv('CF_USERNAME_2'),
-            "password": os.getenv('CF_PASSWORD_2'),
-            "api_endpoint": "api.cf.us10-001.hana.ondemand.com",
-            "org": os.getenv('CF_ORG_2'),
-            "space": os.getenv('CF_SPACE_2', 'dev'),
-            "apps": [app.strip() for app in os.getenv('CF_APPS_2', '').split(',') if app.strip()]
-        }
+        }, 
     ]
 
 ACCOUNTS = get_config()
